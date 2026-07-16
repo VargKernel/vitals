@@ -52,11 +52,11 @@ void panel_cpu(ncplane* n, int y, int x, int h, int w,
         if (bw > 2) {
             lbr(n, row, bx);
             draw_spark(n, row, bx + 1, bw, G.cpu_hist);
-            // Fill remaining cells with bar background
+            // Fill remaining cells with blank space (no BAR_BG dots here)
             int drawn = std::min(bw, static_cast<int>(G.cpu_hist.size()));
             nc_set(n, Cat::SURFACE1);
             for (int i = drawn; i < bw; ++i)
-                ncplane_putstr_yx(n, row, bx + 1 + i, BAR_BG);
+                ncplane_putstr_yx(n, row, bx + 1 + i, " ");
             rbr(n, row, bx + 1 + bw);
         }
         row++;
@@ -65,13 +65,15 @@ void panel_cpu(ncplane* n, int y, int x, int h, int w,
     // Separator
     if (row < iy + ih) { draw_sep(n, row, ix, iw); row++; }
 
-    // Per-core grid: (NN) [pct%][bar][freq MHz]
-    // Fixed per-slot: 6(prefix) + 6([pct%]) + 2+bw(bar) + 10([freq])
+    // Per-core grid: (NN) [pct%][freq MHz][bar]
+    // Fixed per-slot: 6(prefix) + 6([pct%]) + 10([freq], if available) + 2+bw(bar)
     if (!core_pcts.empty() && row < iy + ih) {
         int num  = static_cast<int>(core_pcts.size());
         int ncol = (iw >= 80) ? 2 : 1;
         int slot = iw / ncol;
-        int bw   = std::max(4, slot - 14); // 14 = prefix+pct+bar-brackets+freq
+        bool has_freq = !freqs.empty();
+        int fixed = 6 + 6 + (has_freq ? 10 : 0); // prefix + pct + freq
+        int bw    = std::max(4, slot - fixed - 2); // -2 = bar brackets
 
         for (int i = 0; i < num; ++i) {
             int r  = row + (i / ncol);
@@ -94,20 +96,21 @@ void panel_cpu(ncplane* n, int y, int x, int h, int w,
             ncplane_printf_yx(n, r, cx + 7, "%3.0f%%", cp);
             rbr(n, r, cx + 11);
 
-            // [bar]
-            lbr(n, r, cx + 12);
-            draw_bar_grad(n, r, cx + 13, bw, cp / 100.0, GRAD_CPU);
-            rbr(n, r, cx + 13 + bw);
-
             // [freq MHz]
-            int fx = cx + 13 + bw + 1;
-            if (fx + 10 <= cx + slot && i < static_cast<int>(freqs.size())) {
+            if (has_freq && i < static_cast<int>(freqs.size())) {
+                int fx = cx + 12;
                 lbr(n, r, fx);
                 nc_set(n, Cat::MAUVE);
                 ncplane_printf_yx(n, r, fx + 1, "%4.0f MHz",
                                   freqs[i].current_khz / 1000.0);
                 rbr(n, r, fx + 9);
             }
+
+            // [bar]
+            int bx = cx + fixed;
+            lbr(n, r, bx);
+            draw_bar_grad(n, r, bx + 1, bw, cp / 100.0, GRAD_CPU);
+            rbr(n, r, bx + 1 + bw);
         }
         row += (num + ncol - 1) / ncol;
     }
