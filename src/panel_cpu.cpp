@@ -15,9 +15,9 @@ void panel_cpu(ncplane* n, int y, int x, int h, int w,
 
     // Model: <name>
     if (row < iy + ih) {
-        nc_set(n, Cat::BLUE);
+        nc_set(n, theme().BLUE);
         ncplane_printf_yx(n, row, ix, "%-*s", LBL, "Model:");
-        nc_set(n, Cat::TEXT);
+        nc_set(n, theme().TEXT);
         ncplane_putstr_yx(n, row, ix + LBL,
                           str_trunc(G.ci.model_name, iw - LBL).c_str());
         row++;
@@ -26,7 +26,7 @@ void panel_cpu(ncplane* n, int y, int x, int h, int w,
     // Usage: [ 73%][█████░░░░░░░]
     if (row < iy + ih) {
         uint32_t pc = pct_color(pct);
-        nc_set(n, Cat::BLUE);
+        nc_set(n, theme().BLUE);
         ncplane_printf_yx(n, row, ix, "%-*s", LBL, "Usage:");
 
         lbr(n, row, ix + LBL);
@@ -45,7 +45,7 @@ void panel_cpu(ncplane* n, int y, int x, int h, int w,
 
     // History: [▁▂▃▄▁▂…]
     if (row < iy + ih) {
-        nc_set(n, Cat::BLUE);
+        nc_set(n, theme().BLUE);
         ncplane_printf_yx(n, row, ix, "%-*s", LBL, "History:");
 
         int bx = ix + LBL, bw = iw - LBL - 2;
@@ -54,7 +54,7 @@ void panel_cpu(ncplane* n, int y, int x, int h, int w,
             draw_spark(n, row, bx + 1, bw, G.cpu_hist);
             // Fill remaining cells with blank space (no BAR_BG dots here)
             int drawn = std::min(bw, static_cast<int>(G.cpu_hist.size()));
-            nc_set(n, Cat::SURFACE1);
+            nc_set(n, theme().SURFACE1);
             for (int i = drawn; i < bw; ++i)
                 ncplane_putstr_yx(n, row, bx + 1 + i, " ");
             rbr(n, row, bx + 1 + bw);
@@ -83,11 +83,11 @@ void panel_cpu(ncplane* n, int y, int x, int h, int w,
             uint32_t pc = pct_color(cp);
 
             // (NN)
-            nc_set(n, Cat::OVERLAY0);
+            nc_set(n, theme().OVERLAY0);
             ncplane_putstr_yx(n, r, cx, " (");
-            nc_set(n, Cat::BLUE);
+            nc_set(n, theme().BLUE);
             ncplane_printf_yx(n, r, cx + 2, "%02d", i);
-            nc_set(n, Cat::OVERLAY0);
+            nc_set(n, theme().OVERLAY0);
             ncplane_putstr_yx(n, r, cx + 4, ") ");
 
             // [pct%]
@@ -100,7 +100,7 @@ void panel_cpu(ncplane* n, int y, int x, int h, int w,
             if (has_freq && i < static_cast<int>(freqs.size())) {
                 int fx = cx + 12;
                 lbr(n, r, fx);
-                nc_set(n, Cat::MAUVE);
+                nc_set(n, theme().MAUVE);
                 ncplane_printf_yx(n, r, fx + 1, "%4.0f MHz",
                                   freqs[i].current_khz / 1000.0);
                 rbr(n, r, fx + 9);
@@ -118,9 +118,9 @@ void panel_cpu(ncplane* n, int y, int x, int h, int w,
     // Threads footer (pinned to last inner row)
     int frow = iy + ih - 1;
     if (frow >= row && frow >= iy) {
-        nc_set(n, Cat::BLUE);
+        nc_set(n, theme().BLUE);
         ncplane_putstr_yx(n, frow, ix, "Threads: ");
-        nc_set(n, Cat::TEXT);
+        nc_set(n, theme().TEXT);
         ncplane_printf_yx(n, frow, ix + 9, "%d cores / %d threads",
                           G.ci.cpu_cores, G.ci.cpu_siblings);
     }

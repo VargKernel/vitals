@@ -2,6 +2,7 @@
 
 #include "common.h"
 #include "procfs.h"
+#include "gpu.h"
 
 // Gradient type
 enum GradType { GRAD_CPU, GRAD_MEM, GRAD_TEMP, GRAD_STORAGE, GRAD_HIST };
@@ -36,6 +37,20 @@ struct AppState {
     cpuinfo                ci        = {};
     systemuname            un        = {};
     std::string            local_ip  = "N/A";
+
+    // GPU (parsed once per frame, cached so panels don't re-parse mid-render)
+    std::vector<GpuInfo>   gpus;
+
+    // Theme / background — set from ~/.config/vitals/config at startup,
+    // live-edited from the Settings overlay (Esc), see theme.h / config.h.
+    int  theme_idx = 0;
+    int  bg_idx    = 0;   // 0 = transparent (terminal default), 1 = theme's own BASE color
+
+    // Settings overlay state
+    bool settings_open        = false;
+    int  settings_focus       = 0;   // 0 = theme column, 1 = background column
+    int  settings_saved_theme = 0;   // snapshot on open, restored if the person cancels (Esc)
+    int  settings_saved_bg    = 0;
 };
 
 // Defined in main.cpp, referenced throughout.

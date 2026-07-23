@@ -28,7 +28,7 @@ void rbr(ncplane* n, int y, int x);
 
 // Gradient bar
 // fill ∈ [0, 1]. Each filled cell is colored with the true-color gradient for
-// its position in the bar. Empty cells use Cat::SURFACE1 + BAR_BG ("░").
+// its position in the bar. Empty cells use theme().SURFACE1 + BAR_BG ("░").
 void draw_bar_grad(ncplane* n, int y, int x, int w, double fill, GradType gt);
 
 // Sparkline (CPU history)

@@ -2,33 +2,45 @@
 
 #include "common.h"
 #include "state.h"
+#include "theme.h"
 
-// Catppuccin Mocha palette
-// All values are 0xRRGGBB.
-namespace Cat {
-    constexpr uint32_t TEXT     = 0xcdd6f4;  // --text      default text
-    constexpr uint32_t SUBTEXT0 = 0xa6adc8;  // --subtext0  secondary text
-    constexpr uint32_t SURFACE1 = 0x45475a;  // --surface1  bar background cell
-    constexpr uint32_t SURFACE2 = 0x585b70;  // --surface2  box borders
-    constexpr uint32_t OVERLAY0 = 0x6c7086;  // --overlay0  brackets / separators
-    constexpr uint32_t BLUE     = 0x89b4fa;  // --blue      labels / header keys
-    constexpr uint32_t GREEN    = 0xa6e3a1;  // --green     good / low values
-    constexpr uint32_t PEACH    = 0xfab387;  // --peach     TX / write / warm
-    constexpr uint32_t RED      = 0xf38ba8;  // --red       critical / bad
-    constexpr uint32_t MAUVE    = 0xcba6f7;  // --mauve     titles / CPU freq
-    constexpr uint32_t YELLOW   = 0xf9e2af;  // --yellow    warn / medium
-    constexpr uint32_t TEAL     = 0x94e2d5;  // --teal      RX / read direction
-}
+// Convenience accessor used throughout draw.cpp / panel_*.cpp: `theme().GREEN`
+// instead of spelling out current_theme() everywhere.
+inline const Theme& theme() { return current_theme(); }
 
 // Color / style helpers
 
-// Set foreground from 0xRRGGBB, always reset bg to default.
+// Applies the currently configured background: either the terminal's own
+// default (transparent) or the active theme's own solid BASE color —
+// controlled by G.bg_idx, toggled from the Settings overlay (Esc).
+inline void nc_bg_apply(ncplane* n) {
+    uint64_t channels = 0;
+
+    if (G.bg_idx == 1) {
+        uint32_t rgb = theme().BASE;
+
+        ncchannels_set_fg_default(&channels);
+
+        ncchannels_set_bg_rgb8(
+            &channels,
+            static_cast<unsigned>((rgb >> 16) & 0xFF),
+            static_cast<unsigned>((rgb >>  8) & 0xFF),
+            static_cast<unsigned>( rgb        & 0xFF));
+    } else {
+        ncchannels_set_fg_default(&channels);
+        ncchannels_set_bg_default(&channels);
+    }
+
+    ncplane_set_base(n, " ", 0, channels);
+}
+
+// Set foreground from 0xRRGGBB, apply the currently configured background.
 inline void nc_fg(ncplane* n, uint32_t rgb) {
     ncplane_set_fg_rgb8(n,
         static_cast<unsigned>((rgb >> 16) & 0xFF),
         static_cast<unsigned>((rgb >>  8) & 0xFF),
         static_cast<unsigned>( rgb        & 0xFF));
-    ncplane_set_bg_default(n);
+    nc_bg_apply(n);
 }
 
 // Set fg + style in one call — the main draw helper used throughout panels.
@@ -40,10 +52,13 @@ inline void nc_set(ncplane* n, uint32_t rgb, unsigned style = NCSTYLE_NONE) {
 /*
 True-color gradient interpolation
 Returns a 0xRRGGBB value for position pos ∈ [0, 1], matching the HTML gradients:
-   CPU / HIST: green  -> yellow → red (--green  -> --yellow -> --red)
-   MEM:        blue   -> mauve        (--blue   -> --mauve)
-   TEMP:       yellow -> peach → red  (--yellow -> --peach  -> --red)
-   STORAGE:    teal   -> blue         (--teal   -> --blue)
+   CPU / HIST / GPU: green  -> yellow → red (--green  -> --yellow -> --red)
+   MEM / VRAM:       blue   -> mauve        (--blue   -> --mauve)
+   TEMP:             yellow -> peach → red  (--yellow -> --peach  -> --red)
+   STORAGE:          teal   -> blue         (--teal   -> --blue)
+
+All colors come from the active Theme, so the gradient re-colors itself
+automatically when the theme changes — no per-panel changes needed.
 
 Because notcurses supports true 24-bit color, this is a simple linear
 interpolation — no LUT, no xterm-256 cube approximation needed.
@@ -61,28 +76,30 @@ static inline uint32_t lerp_rgb(uint32_t a, uint32_t b, double t) {
 
 inline uint32_t grad_color(GradType gt, double pos) {
     pos = std::max(0.0, std::min(1.0, pos));
+    const Theme& t = theme();
     switch (gt) {
         case GRAD_CPU:
         case GRAD_HIST:
-            if (pos < 0.5) return lerp_rgb(Cat::GREEN,  Cat::YELLOW, pos * 2.0);
-            else           return lerp_rgb(Cat::YELLOW,  Cat::RED,   (pos - 0.5) * 2.0);
+            if (pos < 0.5) return lerp_rgb(t.GREEN,  t.YELLOW, pos * 2.0);
+            else           return lerp_rgb(t.YELLOW, t.RED,    (pos - 0.5) * 2.0);
 
         case GRAD_MEM:
-            return lerp_rgb(Cat::BLUE, Cat::MAUVE, pos);
+            return lerp_rgb(t.BLUE, t.MAUVE, pos);
 
         case GRAD_TEMP:
-            if (pos < 0.5) return lerp_rgb(Cat::YELLOW, Cat::PEACH, pos * 2.0);
-            else           return lerp_rgb(Cat::PEACH,   Cat::RED,  (pos - 0.5) * 2.0);
+            if (pos < 0.5) return lerp_rgb(t.YELLOW, t.PEACH, pos * 2.0);
+            else           return lerp_rgb(t.PEACH,  t.RED,   (pos - 0.5) * 2.0);
 
         case GRAD_STORAGE:
-            return lerp_rgb(Cat::TEAL, Cat::BLUE, pos);
+            return lerp_rgb(t.TEAL, t.BLUE, pos);
     }
-    return Cat::GREEN;
+    return t.GREEN;
 }
 
 // Discrete color for textual percentage display (the " 73%" label).
 inline uint32_t pct_color(double pct) {
-    if (pct >= 85.0) return Cat::RED;
-    if (pct >= 60.0) return Cat::YELLOW;
-    return Cat::GREEN;
+    const Theme& t = theme();
+    if (pct >= 85.0) return t.RED;
+    if (pct >= 60.0) return t.YELLOW;
+    return t.GREEN;
 }
